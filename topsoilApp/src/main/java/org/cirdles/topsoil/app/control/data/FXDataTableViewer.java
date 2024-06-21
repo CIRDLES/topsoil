@@ -1,17 +1,23 @@
 package org.cirdles.topsoil.app.control.data;
 
 import com.sun.javafx.scene.control.skin.TreeTableViewSkin;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTreeTableCell;
 import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.layout.Region;
 import javafx.scene.text.TextAlignment;
+import javafx.util.Callback;
 import javafx.util.StringConverter;
 import javafx.util.converter.DefaultStringConverter;
 import org.cirdles.topsoil.app.control.undo.UndoAction;
@@ -107,6 +113,63 @@ public class FXDataTableViewer extends SingleChildRegion<TreeTableView<FXDataRow
         table.scientificNotationProperty().addListener(c -> {
             updateFractionDigitsForLeafColumns();
             refreshCells();
+        });
+
+        // MULTI-SELECT
+        treeTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+
+        treeTableView.setRowFactory(new Callback<TreeTableView<FXDataRow>, TreeTableRow<FXDataRow>>() {
+            @Override
+            public TreeTableRow<FXDataRow> call(TreeTableView<FXDataRow> param) {
+                final TreeTableRow<FXDataRow> row = new TreeTableRow<>();
+                final ContextMenu rowMenu = new ContextMenu();
+                ContextMenu tableMenu = treeTableView.getContextMenu();
+
+                MenuItem editItem = new MenuItem("Group");
+                editItem.setOnAction(new EventHandler<ActionEvent>() {
+                    @Override
+                    public void handle(ActionEvent event) {
+                        // todo: add popup for naming the group and specifying the plot color
+                        // todo: prevent nested grouping
+                        System.out.println("ActionEvent handled this group: " + treeTableView.getSelectionModel().getSelectedItems());
+                        ObservableList<TreeItem<FXDataRow>> itemsForGrouping = treeTableView.getSelectionModel().getSelectedItems();
+                        TreeItem<FXDataRow> firstItem = itemsForGrouping.get(0);
+
+                        FXDataRow groupRow = new FXDataRow("group", true);
+                        groupRow.setGroupProperty(true);
+                        TreeItem<FXDataRow> groupItem = new TreeItem<FXDataRow>(groupRow);
+
+                        // Copies content into new TreeItem objects instead of using groupItem.getChildren().addAll(itemsForGrouping)
+                        // because the latter caused an issue with spacing
+                        boolean isGroupable = true;
+                        for (TreeItem<FXDataRow> item : itemsForGrouping) {
+                            FXDataRow fxDataRowContent = item.getValue();
+
+                            if (!fxDataRowContent.getGroupProperty()) {
+                                groupItem.getChildren().add(new TreeItem<FXDataRow>(fxDataRowContent));
+                            } else {
+                                isGroupable = false;
+                                break;
+                            }
+                        }
+
+                        if (isGroupable) {
+                            int indexOfFirstSelection = treeTableView.getSelectionModel().getSelectedIndices().get(0);
+                            treeTableView.getRoot().getChildren().add(indexOfFirstSelection, groupItem);
+                            treeTableView.getRoot().getChildren().removeAll(itemsForGrouping);
+                        }
+
+                        treeTableView.getSelectionModel().clearSelection();
+                    }
+                });
+
+                rowMenu.getItems().addAll(editItem);
+                row.contextMenuProperty().bind(
+                        Bindings.when(Bindings.isNotNull(row.itemProperty()))
+                                .then(rowMenu)
+                                .otherwise((ContextMenu) null));
+                return row;
+            }
         });
     }
 

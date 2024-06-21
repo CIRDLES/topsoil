@@ -21,6 +21,8 @@ import java.util.Map;
 
 public class FXDataRow extends FXDataComponent<DataRow> implements DataRow {
 
+    private boolean isGroup = false;
+
     private ListProperty<FXDataRow> childRows = new SimpleListProperty<>(
             // Initializes the list property with an observable list that listens to changes in the properties of each
             // row
@@ -36,6 +38,15 @@ public class FXDataRow extends FXDataComponent<DataRow> implements DataRow {
     public final ReadOnlyListProperty<FXDataRow> childRowsProperty() {
         return childRows;
     }
+
+    public boolean getGroupProperty() {
+        return isGroup;
+    }
+
+    public void setGroupProperty(boolean newProperty) {
+        this.isGroup = newProperty;
+    }
+
     @Override
     public final ObservableList<FXDataRow> getChildren() {
         return childRows.get();
